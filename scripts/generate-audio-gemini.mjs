@@ -18,8 +18,11 @@
  * Получить ключ: https://aistudio.google.com/apikey
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -61,25 +64,38 @@ function rateFromMime(mime) {
   return m ? parseInt(m[1], 10) : 24000;
 }
 
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '4', 10);
+
 async function synth(text) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${STYLE} ${text}` }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } } },
-      },
-    }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const part = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-  if (!part) throw new Error('В ответе нет аудио: ' + JSON.stringify(data).slice(0, 300));
-  const pcm = Buffer.from(part.inlineData.data, 'base64');
-  return pcmToWav(pcm, rateFromMime(part.inlineData.mimeType));
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'x-goog-api-key': API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${STYLE} ${text}` }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } } },
+        },
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const part = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (!part) throw new Error('В ответе нет аудио: ' + JSON.stringify(data).slice(0, 300));
+      const pcm = Buffer.from(part.inlineData.data, 'base64');
+      return pcmToWav(pcm, rateFromMime(part.inlineData.mimeType));
+    }
+    // 429 = превышен лимит. Если поминутный — поможет пауза; если суточный — нет.
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const wait = 20000 * (attempt + 1); // 20с, 40с, 60с, 80с
+      process.stdout.write(`(лимит 429, пауза ${wait / 1000}с) `);
+      await sleep(wait);
+      continue;
+    }
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
 }
 
 const dataPath = join(ROOT, 'data', 'catastrophes.json');
@@ -87,19 +103,25 @@ const data = JSON.parse(await readFile(dataPath, 'utf8'));
 await mkdir(join(ROOT, 'audio', 'voice'), { recursive: true });
 
 console.log(`Голос: ${VOICE_NAME} | модель: ${MODEL}\n`);
+let made = 0, failed = 0, skipped = 0;
 for (const cat of data.catastrophes) {
   if (cat.placeholder) { console.log(`⏭  Пропуск (заглушка): ${cat.name}`); continue; }
+  const rel = `audio/voice/${cat.id}.wav`;
+  // Уже озвучено? Пропускаем — повторный запуск доделывает только недостающее.
+  if (cat.audio && existsSync(join(ROOT, rel))) { skipped++; continue; }
   process.stdout.write(`🎙  ${cat.name} … `);
   try {
     const wav = await synth(cat.text);
-    const rel = `audio/voice/${cat.id}.wav`;
     await writeFile(join(ROOT, rel), wav);
     cat.audio = rel;
+    made++;
     console.log('готово');
   } catch (e) {
+    failed++;
     console.error('ОШИБКА:', e.message);
   }
 }
+console.log(`\nГотово: +${made}, пропущено (уже было): ${skipped}, ошибок: ${failed}`);
 
 await writeFile(dataPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
 console.log('\n✅ Озвучка сгенерирована, catastrophes.json обновлён.');
