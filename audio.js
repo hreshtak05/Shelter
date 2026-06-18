@@ -10,10 +10,15 @@
  */
 const Audio = (() => {
   let ctx = null;
-  let musicNodes = null;   // { gain, oscillators[] }
+  let musicEl = null;      // HTMLAudioElement с вашим треком
+  let musicFade = null;    // таймер плавного изменения громкости
   let tickTimer = null;
-  let duckTarget = 0.18;   // громкость музыки во время речи (ducking)
-  let musicLevel = 0.5;    // обычная громкость музыки
+  let duckTarget = 0.20;   // громкость музыки во время речи (ducking)
+  let musicLevel = 0.6;    // обычная громкость музыки (0..1)
+
+  // ⬇️ ВАШ ТРЕК: положите MP3 сюда и назовите его theme.mp3
+  //    (или поменяйте имя/путь здесь). Если файла нет — просто тишина, без «шума».
+  const MUSIC_SRC = 'audio/music/theme.mp3';
 
   function ac() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -21,52 +26,42 @@ const Audio = (() => {
     return ctx;
   }
 
-  // ——— Фоновая «тревожная» музыка (синтезированный дрон). Заменяется на MP3 в Фазе 4. ———
-  function startMusic() {
-    if (musicNodes) return;
-    const c = ac();
-    const gain = c.createGain();
-    gain.gain.value = 0;
-    gain.connect(c.destination);
-    gain.gain.linearRampToValueAtTime(musicLevel, c.currentTime + 2.5);
+  // ——— Фоновая музыка из вашего файла (audio/music/theme.mp3). ———
+  function fadeMusicTo(target, ms) {
+    if (!musicEl) return;
+    if (musicFade) { clearInterval(musicFade); musicFade = null; }
+    const steps = Math.max(1, Math.round(ms / 50));
+    const start = musicEl.volume;
+    let i = 0;
+    musicFade = setInterval(() => {
+      i++;
+      const v = start + (target - start) * (i / steps);
+      musicEl.volume = Math.min(1, Math.max(0, v));
+      if (i >= steps) { clearInterval(musicFade); musicFade = null; }
+    }, 50);
+  }
 
-    const freqs = [55, 82.4, 110, 164.8]; // A1, E2, A2, E3 — мрачное созвучие
-    const oscillators = freqs.map((f, i) => {
-      const o = c.createOscillator();
-      o.type = i % 2 ? 'sawtooth' : 'sine';
-      o.frequency.value = f;
-      const og = c.createGain();
-      og.gain.value = i === 0 ? 0.5 : 0.18;
-      // лёгкое биение для «живого» дрона
-      const lfo = c.createOscillator();
-      lfo.frequency.value = 0.07 + i * 0.013;
-      const lfoGain = c.createGain();
-      lfoGain.gain.value = 0.06;
-      lfo.connect(lfoGain).connect(og.gain);
-      lfo.start();
-      o.connect(og).connect(gain);
-      o.start();
-      return o;
-    });
-    musicNodes = { gain, oscillators };
+  function startMusic() {
+    if (musicEl) { musicEl.play().catch(() => {}); fadeMusicTo(musicLevel, 1500); return; }
+    musicEl = new window.Audio(MUSIC_SRC);
+    musicEl.loop = true;
+    musicEl.volume = 0;
+    musicEl.addEventListener('canplaythrough', () => fadeMusicTo(musicLevel, 2500), { once: true });
+    musicEl.addEventListener('error', () => { /* файла нет — тишина, без «шума» */ });
+    musicEl.play().catch(() => {});
   }
 
   function stopMusic() {
-    if (!musicNodes) return;
-    const c = ac();
-    const { gain, oscillators } = musicNodes;
-    gain.gain.cancelScheduledValues(c.currentTime);
-    gain.gain.linearRampToValueAtTime(0, c.currentTime + 1.5);
-    setTimeout(() => oscillators.forEach(o => { try { o.stop(); } catch (e) {} }), 1600);
-    musicNodes = null;
+    if (!musicEl) return;
+    fadeMusicTo(0, 1200);
+    const el = musicEl;
+    setTimeout(() => { try { el.pause(); el.currentTime = 0; } catch (e) {} }, 1300);
+    musicEl = null;
   }
 
   function duck(on) {
-    if (!musicNodes) return;
-    const c = ac();
-    const g = musicNodes.gain.gain;
-    g.cancelScheduledValues(c.currentTime);
-    g.linearRampToValueAtTime(on ? duckTarget : musicLevel, c.currentTime + 0.4);
+    if (!musicEl) return;
+    fadeMusicTo(on ? duckTarget : musicLevel, 350);
   }
 
   // ——— Тик-так во время таймеров ———
@@ -162,6 +157,6 @@ const Audio = (() => {
     startMusic, stopMusic, duck,
     startTick, stopTick, stinger,
     speak, speakCatastrophe, stopSpeaking,
-    setMusicLevel: v => { musicLevel = v; if (musicNodes && !tickTimer) duck(false); }
+    setMusicLevel: v => { musicLevel = v; if (musicEl && !musicFade) musicEl.volume = v; }
   };
 })();
