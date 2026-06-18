@@ -1,0 +1,16 @@
+{
+  "_comment": "Таблица раундов из правил «Бункер: Поколение Альфа» (стр. 5). Ключ — число игроков. votings[i] — число голосований (изгнаний) в раунде i+1. eliminated — всего изгнанных. seats — мест в бункере. Сумма votings всегда равна eliminated, а seats = игроки - eliminated.",
+  "4":  { "votings": [0, 0, 0, 1, 1], "eliminated": 2, "seats": 2 },
+  "5":  { "votings": [0, 0, 1, 1, 1], "eliminated": 3, "seats": 2 },
+  "6":  { "votings": [0, 0, 1, 1, 1], "eliminated": 3, "seats": 3 },
+  "7":  { "votings": [0, 1, 1, 1, 1], "eliminated": 4, "seats": 3 },
+  "8":  { "votings": [0, 1, 1, 1, 1], "eliminated": 4, "seats": 4 },
+  "9":  { "votings": [0, 1, 1, 1, 2], "eliminated": 5, "seats": 4 },
+  "10": { "votings": [0, 1, 1, 1, 2], "eliminated": 5, "seats": 5 },
+  "11": { "votings": [0, 1, 1, 2, 2], "eliminated": 6, "seats": 5 },
+  "12": { "votings": [0, 1, 1, 2, 2], "eliminated": 6, "seats": 6 },
+  "13": { "votings": [0, 1, 2, 2, 2], "eliminated": 7, "seats": 6 },
+  "14": { "votings": [0, 1, 2, 2, 2], "eliminated": 7, "seats": 7 },
+  "15": { "votings": [0, 2, 2, 2, 2], "eliminated": 8, "seats": 7 },
+  "16": { "votings": [0, 2, 2, 2, 2], "eliminated": 8, "seats": 8 }
+}

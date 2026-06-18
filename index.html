@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>БУНКЕР — Ведущий</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <!-- ───────────── ЭКРАН НАСТРОЙКИ ───────────── -->
+  <section id="screen-setup" class="screen active">
+    <div class="panel">
+      <h1 class="logo">БУНКЕР</h1>
+      <p class="subtitle">Ведущий апокалипсиса</p>
+
+      <label class="field-label">Игроки (по одному в строке)</label>
+      <textarea id="players-input" rows="6" placeholder="Анна&#10;Борис&#10;Виктор&#10;Галина"></textarea>
+      <p class="hint">От 4 до 16 игроков. Для 2–3 играйте двумя персонажами (правила, стр. 5).</p>
+
+      <label class="field-label">Режим игры</label>
+      <div class="mode-row">
+        <button class="mode-btn active" data-mode="basic">Базовый</button>
+        <button class="mode-btn" data-mode="survival">История выживания</button>
+      </div>
+
+      <button id="btn-to-catastrophe" class="primary big">Начать</button>
+      <p id="setup-error" class="error"></p>
+    </div>
+  </section>
+
+  <!-- ───────────── ВЫБОР КАТАСТРОФЫ ───────────── -->
+  <section id="screen-catastrophe" class="screen">
+    <div class="panel wide">
+      <h2 class="section-title">Выберите катастрофу</h2>
+      <p class="hint">Нажмите — заиграет музыка и прозвучит описание катастрофы.</p>
+      <div id="catastrophe-grid" class="cat-grid"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── ПРОИГРЫВАНИЕ КАТАСТРОФЫ ───────────── -->
+  <section id="screen-cat-play" class="screen">
+    <div class="panel cinematic">
+      <span id="cat-badge" class="badge hidden">ПРИМЕР — заменить текстом карты</span>
+      <h2 id="cat-title" class="cat-title"></h2>
+      <p id="cat-text" class="cat-text"></p>
+      <div class="row">
+        <button id="btn-replay" class="ghost">↺ Повторить</button>
+        <button id="btn-cat-stop" class="ghost">⏹ Тишина</button>
+        <button id="btn-start-game" class="primary big">Начать игру →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────── ИГРОВОЙ ЭКРАН ВЕДУЩЕГО ───────────── -->
+  <section id="screen-game" class="screen">
+    <header class="game-header">
+      <div class="round-badge">РАУНД <span id="round-num">1</span><span class="of">/ 5</span></div>
+      <div id="phase-label" class="phase-label">Исследование Бункера</div>
+      <button id="btn-quit" class="ghost small">Выйти</button>
+    </header>
+
+    <div class="game-body">
+      <!-- Игроки -->
+      <aside class="players-col">
+        <h3>Игроки</h3>
+        <ul id="players-list" class="players-list"></ul>
+        <div class="legend">
+          <span><i class="dot active-dot"></i> ход</span>
+          <span><i class="dot out-dot"></i> изгнан</span>
+        </div>
+      </aside>
+
+      <!-- Центр: таймер + текущий шаг -->
+      <main class="stage">
+        <div id="stage-prompt" class="stage-prompt">Исследование Бункера — откройте пару карт Бункера и Угрозы и зачитайте вслух.</div>
+
+        <div id="timer-wrap" class="timer-wrap hidden">
+          <div id="timer" class="timer">0:30</div>
+          <div id="timer-caption" class="timer-caption"></div>
+        </div>
+
+        <div class="timer-controls">
+          <button id="btn-add-10" class="ghost" disabled>+10 сек</button>
+          <button id="btn-add-20" class="ghost" disabled>+20 сек</button>
+          <button id="btn-stop" class="warn" disabled>⏹ Стоп</button>
+        </div>
+      </main>
+
+      <!-- Правая колонка: управление фазами -->
+      <aside class="control-col">
+        <h3>Управление</h3>
+
+        <div class="ctrl-group">
+          <div class="ctrl-title">Круг открытия карт</div>
+          <button id="btn-reveal-start" class="primary">▶ Слово игроку (30с)</button>
+          <button id="btn-reveal-next" class="ghost" disabled>Следующий игрок →</button>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-title">Обсуждение</div>
+          <div class="row">
+            <button class="ghost disc-btn" data-min="2">2 мин</button>
+            <button class="ghost disc-btn" data-min="5">5 мин</button>
+          </div>
+          <div class="row">
+            <input id="disc-custom" type="number" min="1" max="30" placeholder="мин" />
+            <button id="btn-disc-custom" class="ghost">Старт</button>
+          </div>
+        </div>
+
+        <div class="ctrl-group" id="vote-group">
+          <div class="ctrl-title">Голосование <span id="vote-need" class="pill"></span></div>
+          <p class="hint" id="vote-hint">Отметьте изгнанных слева, затем подтвердите.</p>
+          <button id="btn-confirm-vote" class="warn" disabled>Подтвердить изгнание</button>
+        </div>
+
+        <button id="btn-next-round" class="primary big" disabled>Следующий раунд →</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ───────────── ФИНАЛ ───────────── -->
+  <section id="screen-finale" class="screen">
+    <div class="panel cinematic">
+      <h2 class="section-title">Двери бункера закрылись</h2>
+      <div class="finale-cols">
+        <div>
+          <h3 class="good">В бункере</h3>
+          <ul id="finale-survivors" class="finale-list"></ul>
+        </div>
+        <div>
+          <h3 class="bad">Изгнаны</h3>
+          <ul id="finale-eliminated" class="finale-list"></ul>
+        </div>
+      </div>
+      <button id="btn-restart" class="primary big">Новая игра</button>
+    </div>
+  </section>
+
+  <!-- Подсказка про звук -->
+  <div id="audio-note" class="audio-note hidden">🔊 Нажмите в любом месте, чтобы включить звук</div>
+
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
