@@ -28,7 +28,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const VOICE_NAME = process.env.VOICE_NAME || 'Charon';
+const VOICE_NAME = process.env.VOICE_NAME || 'Fenrir';
 const MODEL = process.env.MODEL || 'gemini-2.5-flash-preview-tts';
 const STYLE = process.env.STYLE ||
   'Прочитай драматично и выразительно, глубоким мужским голосом, в бодром, уверенном темпе, энергично и без лишних пауз:';
@@ -65,7 +65,7 @@ function rateFromMime(mime) {
   return m ? parseInt(m[1], 10) : 24000;
 }
 
-const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '4', 10);
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '2', 10);
 
 async function synth(text) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -95,7 +95,9 @@ async function synth(text) {
       await sleep(wait);
       continue;
     }
-    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const err = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    if (res.status === 429) err.quota = true; // дневной лимит исчерпан
+    throw err;
   }
 }
 
@@ -108,19 +110,26 @@ let made = 0, failed = 0, skipped = 0;
 for (const cat of data.catastrophes) {
   if (cat.placeholder) { console.log(`⏭  Пропуск (заглушка): ${cat.name}`); continue; }
   const rel = `audio/voice/${cat.id}.wav`;
-  // Уже озвучено? Пропускаем — повторный запуск доделывает только недостающее.
-  // (FORCE=1 — перегенерировать всё, например при смене голоса или темпа.)
-  if (!FORCE && cat.audio && existsSync(join(ROOT, rel))) { skipped++; continue; }
-  process.stdout.write(`🎙  ${cat.name} … `);
+  // Уже озвучено нужным голосом? Пропускаем. Так повторный запуск доделывает
+  // только то, что ещё не в целевом голосе — и смену голоса можно «размазать»
+  // по дням бесплатного лимита. (FORCE=1 — перегенерировать всё принудительно.)
+  const upToDate = cat.audio && existsSync(join(ROOT, rel)) && cat.voice === VOICE_NAME;
+  if (!FORCE && upToDate) { skipped++; continue; }
+  process.stdout.write(`🎙  ${cat.name} (${VOICE_NAME}) … `);
   try {
     const wav = await synth(cat.text);
     await writeFile(join(ROOT, rel), wav);
     cat.audio = rel;
+    cat.voice = VOICE_NAME;
     made++;
     console.log('готово');
   } catch (e) {
     failed++;
     console.error('ОШИБКА:', e.message);
+    if (e.quota) {
+      console.log('⏸  Лимит Gemini на сегодня исчерпан — останавливаюсь. Запустите завтра, доделает остальное.');
+      break;
+    }
   }
 }
 console.log(`\nГотово: +${made}, пропущено (уже было): ${skipped}, ошибок: ${failed}`);

@@ -8,7 +8,7 @@ on:
       voice:
         description: "Голос (Charon, Algenib, Fenrir, Orus, Alnilam, Gacrux, Enceladus, Rasalgethi …)"
         required: false
-        default: "Charon"
+        default: "Fenrir"
       style:
         description: "Стиль/темп чтения (оставьте пустым для значения по умолчанию)"
         required: false
@@ -38,7 +38,7 @@ jobs:
       - name: Сгенерировать озвучку
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VOICE_NAME: ${{ github.event.inputs.voice || 'Charon' }}
+          VOICE_NAME: ${{ github.event.inputs.voice || 'Fenrir' }}
           STYLE: ${{ github.event.inputs.style }}
           FORCE: ${{ github.event.inputs.force }}
         run: |
@@ -60,4 +60,4 @@ jobs:
             git push
           fi
         env:
-          VOICE_NAME: ${{ github.event.inputs.voice || 'Charon' }}
+          VOICE_NAME: ${{ github.event.inputs.voice || 'Fenrir' }}
