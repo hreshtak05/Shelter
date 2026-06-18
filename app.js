@@ -108,6 +108,36 @@
     Audio.speakCatastrophe(cat);
   }
 
+  // ——— Кубик: случайная катастрофа с анимацией «прокрутки» ———
+  let rolling = false;
+  $('#btn-random').addEventListener('click', () => {
+    if (rolling) return;
+    const cats = state.catastrophes;
+    const cards = [...document.querySelectorAll('.cat-card')];
+    if (!cats.length || !cards.length) return;
+    unlockAudio();
+    rolling = true;
+    $('#btn-random').disabled = true;
+
+    const pick = Math.floor(Math.random() * cats.length);
+    const totalTicks = cards.length + pick + 1; // финальная подсветка придётся на pick
+    let t = 0;
+    Audio.startTick(70);
+    const iv = setInterval(() => {
+      cards.forEach(c => c.classList.remove('rolling'));
+      cards[t % cards.length].classList.add('rolling');
+      t++;
+      if (t >= totalTicks) {
+        clearInterval(iv);
+        Audio.stopTick();
+        cards.forEach(c => c.classList.remove('rolling'));
+        rolling = false;
+        $('#btn-random').disabled = false;
+        playCatastrophe(cats[pick]);
+      }
+    }, 70);
+  });
+
   $('#btn-replay').addEventListener('click', () => currentCat && Audio.speakCatastrophe(currentCat));
   $('#btn-cat-stop').addEventListener('click', () => Audio.stopSpeaking());
   $('#btn-start-game').addEventListener('click', startGame);
