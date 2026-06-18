@@ -1,0 +1,52 @@
+name: Озвучка катастроф (Gemini)
+
+# Запускается вручную кнопкой «Run workflow» во вкладке Actions,
+# а также автоматически при изменении текстов катастроф.
+on:
+  workflow_dispatch:
+    inputs:
+      voice:
+        description: "Голос Gemini (Charon, Fenrir, Orus, Algenib, Iapetus …)"
+        required: false
+        default: "Charon"
+  push:
+    paths:
+      - "data/catastrophes.json"
+
+permissions:
+  contents: write   # чтобы закоммитить сгенерированные аудиофайлы обратно
+
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Сгенерировать озвучку
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VOICE_NAME: ${{ github.event.inputs.voice || 'Charon' }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Не задан секрет GEMINI_API_KEY (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          node scripts/generate-audio-gemini.mjs
+
+      - name: Закоммитить аудио
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audio/voice data/catastrophes.json
+          if git diff --cached --quiet; then
+            echo "Изменений нет — нечего коммитить."
+          else
+            git commit -m "Сгенерирована озвучка катастроф (Gemini, ${VOICE_NAME:-Charon})"
+            git push
+          fi
+        env:
+          VOICE_NAME: ${{ github.event.inputs.voice || 'Charon' }}
