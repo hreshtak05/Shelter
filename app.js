@@ -25,14 +25,24 @@
 
   // ——— Загрузка данных ———
   async function loadData() {
-    const [rt, cat, ph] = await Promise.all([
+    const [rt, cat, ph, ann] = await Promise.all([
       fetch('data/round-table.json').then(r => r.json()),
       fetch('data/catastrophes.json').then(r => r.json()),
       fetch('data/phrases.json').then(r => r.json()),
+      fetch('data/announcer.json').then(r => r.json()).catch(() => ({ clips: [] })),
     ]);
     state.roundTable = rt;
     state.catastrophes = cat.catastrophes;
     state.phrases = ph;
+    state.announcer = {};
+    (ann.clips || []).forEach(c => { state.announcer[c.id] = c; });
+  }
+
+  // Озвучить реплику ведущего: готовый MP3 (мужской голос) если есть, иначе голос браузера.
+  function announce(id) {
+    const clip = state.announcer && state.announcer[id];
+    if (clip && clip.audio) return Audio.playFile(clip.audio);
+    return Audio.speak(clip ? clip.text : '', { rate: 1.0, pitch: 0.7 });
   }
 
   function phrase(key, vars = {}) {
@@ -154,6 +164,7 @@
 
   // ═══════════════ ИГРА ═══════════════
   function startGame() {
+    Audio.stopVoice(); // остановить чтение катастрофы, чтобы не наложилось на ведущего
     state.round = 1;
     state.players.forEach(p => p.out = false);
     show('screen-game');
@@ -178,7 +189,7 @@
 
     renderPlayers();
     updateControls();
-    Audio.speak(phrase('round_start', { round: n }));
+    announce('round-' + n);
   }
 
   function renderPlayers() {
@@ -213,7 +224,7 @@
     if (!p) return;
     renderPlayers();
     $('#stage-prompt').classList.add('hidden');
-    Audio.speak(phrase('reveal_player', { player: p.name }));
+    announce('reveal');
     startTimer(30, `Говорит: ${p.name}`, () => {
       // время вышло — ждём «Следующий игрок»
     });
@@ -251,7 +262,7 @@
     state.phase = 'discussion';
     $('#phase-label').textContent = 'Обсуждение';
     $('#stage-prompt').classList.add('hidden');
-    Audio.speak(phrase('discussion_start'));
+    announce('discussion');
     startTimer(min * 60, 'Обсуждение', () => {});
     updateControls();
   }
@@ -265,7 +276,7 @@
     $('#vote-need').textContent = `изгнать: ${need}`;
     $('#stage-prompt').classList.remove('hidden');
     $('#stage-prompt').textContent = `Отметьте ${need} ${plural(need, 'игрока', 'игроков', 'игроков')} на изгнание в списке слева.`;
-    Audio.speak(phrase('vote_start'));
+    announce('vote');
     renderPlayers();
     updateControls();
   }
@@ -349,11 +360,10 @@
     announceEliminations(outNames);
   }
 
-  async function announceEliminations(names) {
-    for (const name of names) {
-      Audio.stinger();
-      await Audio.speak(phrase('eliminated', { player: name }));
-    }
+  function announceEliminations(names) {
+    // имена изгнанных показаны на экране; ведущий объявляет общим мужским голосом
+    Audio.stinger();
+    announce('eliminated');
   }
 
   function cumulativeEliminated(round) {
@@ -410,7 +420,7 @@
     if (!state.timer) return;
     state.timer.remaining += sec;
     renderTimer();
-    Audio.speak(phrase('time_added'), { rate: 1, pitch: 0.8 });
+    announce('time-added');
   }
 
   $('#btn-stop').addEventListener('click', () => {
@@ -427,9 +437,7 @@
     $('#finale-survivors').innerHTML = survivors.map(n => `<li class="s">${n}</li>`).join('');
     $('#finale-eliminated').innerHTML = eliminated.map(n => `<li class="e">${n}</li>`).join('');
     show('screen-finale');
-    Audio.speak(phrase('finale_intro')).then(() =>
-      Audio.speak(phrase('finale_survivors', { survivors: survivors.join(', ') }))
-    );
+    announce('finale-intro').then(() => announce('finale-survivors'));
   }
 
   $('#btn-restart').addEventListener('click', () => {

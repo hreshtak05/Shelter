@@ -42,6 +42,7 @@ const Audio = (() => {
   }
 
   let musicEnabled = true; // переключатель «фоновая музыка вкл/выкл»
+  let voiceEl = null;      // текущий проигрываемый голосовой файл (чтобы его можно было остановить)
 
   function startMusic() {
     if (!musicEnabled) return;
@@ -112,8 +113,10 @@ const Audio = (() => {
   let ruVoice = null;
   function pickVoice() {
     const voices = speechSynthesis.getVoices();
-    ruVoice = voices.find(v => /ru[-_]RU/i.test(v.lang)) ||
-              voices.find(v => /^ru/i.test(v.lang)) || null;
+    const ru = voices.filter(v => /^ru/i.test(v.lang));
+    // По возможности — мужской русский голос (на macOS/iOS это «Yuri»).
+    ruVoice = ru.find(v => /(yuri|pavel|maxim|aleksandr|dmitri|male|муж)/i.test(v.name)) ||
+              ru[0] || null;
   }
   if ('speechSynthesis' in window) {
     pickVoice();
@@ -124,6 +127,8 @@ const Audio = (() => {
   function speak(text, { rate = 0.9, pitch = 0.7 } = {}) {
     return new Promise(resolve => {
       if (!('speechSynthesis' in window) || !text) { resolve(); return; }
+      // остановить любой проигрываемый голосовой файл, чтобы не наложилось
+      if (voiceEl) { try { voiceEl.pause(); } catch (e) {} voiceEl = null; }
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'ru-RU';
@@ -137,21 +142,30 @@ const Audio = (() => {
     });
   }
 
+  // Воспроизвести готовый аудиофайл (катастрофа или реплика ведущего).
+  // Останавливает предыдущий голос, приглушает музыку, резолвится по окончании.
+  function playFile(src) {
+    return new Promise(resolve => {
+      stopVoice();
+      const a = new window.Audio(src);
+      voiceEl = a;
+      duck(true);
+      const done = () => { if (voiceEl === a) voiceEl = null; duck(false); resolve(); };
+      a.onended = done;
+      a.onerror = done;
+      a.play().catch(done);
+    });
+  }
+
   // Озвучить катастрофу: если есть готовый MP3 — играем его, иначе голос браузера.
   function speakCatastrophe(cat) {
-    if (cat.audio) {
-      return new Promise(resolve => {
-        const a = new window.Audio(cat.audio);
-        duck(true);
-        a.onended = () => { duck(false); resolve(); };
-        a.onerror = () => { duck(false); resolve(); };
-        a.play().catch(() => { duck(false); resolve(); });
-      });
-    }
+    if (cat.audio) return playFile(cat.audio);
     return speak(cat.text, { rate: 1.05, pitch: 0.7 });
   }
 
-  function stopSpeaking() {
+  // Остановить любой голос (и файл, и синтез речи).
+  function stopVoice() {
+    if (voiceEl) { try { voiceEl.pause(); voiceEl.currentTime = 0; } catch (e) {} voiceEl = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     duck(false);
   }
@@ -159,7 +173,8 @@ const Audio = (() => {
   return {
     startMusic, stopMusic, duck,
     startTick, stopTick, stinger,
-    speak, speakCatastrophe, stopSpeaking,
+    speak, speakCatastrophe, playFile,
+    stopVoice, stopSpeaking: stopVoice,
     setMusicLevel: v => { musicLevel = v; if (musicEl && !musicFade) musicEl.volume = v; },
     isMusicEnabled: () => musicEnabled,
     toggleMusic() {

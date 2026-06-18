@@ -101,38 +101,56 @@ async function synth(text) {
   }
 }
 
-const dataPath = join(ROOT, 'data', 'catastrophes.json');
-const data = JSON.parse(await readFile(dataPath, 'utf8'));
-await mkdir(join(ROOT, 'audio', 'voice'), { recursive: true });
-
-console.log(`Голос: ${VOICE_NAME} | модель: ${MODEL}\n`);
-let made = 0, failed = 0, skipped = 0;
-for (const cat of data.catastrophes) {
-  if (cat.placeholder) { console.log(`⏭  Пропуск (заглушка): ${cat.name}`); continue; }
-  const rel = `audio/voice/${cat.id}.wav`;
-  // Уже озвучено нужным голосом? Пропускаем. Так повторный запуск доделывает
-  // только то, что ещё не в целевом голосе — и смену голоса можно «размазать»
-  // по дням бесплатного лимита. (FORCE=1 — перегенерировать всё принудительно.)
-  const upToDate = cat.audio && existsSync(join(ROOT, rel)) && cat.voice === VOICE_NAME;
-  if (!FORCE && upToDate) { skipped++; continue; }
-  process.stdout.write(`🎙  ${cat.name} (${VOICE_NAME}) … `);
-  try {
-    const wav = await synth(cat.text);
-    await writeFile(join(ROOT, rel), wav);
-    cat.audio = rel;
-    cat.voice = VOICE_NAME;
-    made++;
-    console.log('готово');
-  } catch (e) {
-    failed++;
-    console.error('ОШИБКА:', e.message);
-    if (e.quota) {
-      console.log('⏸  Лимит Gemini на сегодня исчерпан — останавливаюсь. Запустите завтра, доделает остальное.');
-      break;
+// Озвучить список элементов {id, text, audio, voice} в подпапку outDir.
+// Пропускает уже готовые в нужном голосе (если не FORCE). Возвращает счётчики
+// и флаг quotaHit (дневной лимит исчерпан — выше можно остановиться).
+async function processItems(items, outDir, label) {
+  await mkdir(join(ROOT, outDir), { recursive: true });
+  let made = 0, failed = 0, skipped = 0, quotaHit = false;
+  console.log(`\n— ${label} —`);
+  for (const it of items) {
+    if (it.placeholder) { console.log(`⏭  Пропуск (заглушка): ${it.name || it.id}`); continue; }
+    const rel = `${outDir}/${it.id}.wav`;
+    const upToDate = it.audio && existsSync(join(ROOT, rel)) && it.voice === VOICE_NAME;
+    if (!FORCE && upToDate) { skipped++; continue; }
+    process.stdout.write(`🎙  ${it.name || it.id} (${VOICE_NAME}) … `);
+    try {
+      const wav = await synth(it.text);
+      await writeFile(join(ROOT, rel), wav);
+      it.audio = rel;
+      it.voice = VOICE_NAME;
+      made++;
+      console.log('готово');
+    } catch (e) {
+      failed++;
+      console.error('ОШИБКА:', e.message);
+      if (e.quota) {
+        console.log('⏸  Лимит Gemini на сегодня исчерпан — останавливаюсь. Запустите завтра, доделает остальное.');
+        quotaHit = true;
+        break;
+      }
     }
   }
+  console.log(`Итог (${label}): +${made}, пропущено: ${skipped}, ошибок: ${failed}`);
+  return { made, failed, skipped, quotaHit };
 }
-console.log(`\nГотово: +${made}, пропущено (уже было): ${skipped}, ошибок: ${failed}`);
 
-await writeFile(dataPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
-console.log('\n✅ Озвучка сгенерирована, catastrophes.json обновлён.');
+console.log(`Голос: ${VOICE_NAME} | модель: ${MODEL}`);
+
+// 1) Катастрофы
+const catPath = join(ROOT, 'data', 'catastrophes.json');
+const catData = JSON.parse(await readFile(catPath, 'utf8'));
+const r1 = await processItems(catData.catastrophes, 'audio/voice', 'Катастрофы');
+await writeFile(catPath, JSON.stringify(catData, null, 2) + '\n', 'utf8');
+
+// 2) Реплики ведущего (без имён игроков) — тем же голосом
+const annPath = join(ROOT, 'data', 'announcer.json');
+if (!r1.quotaHit && existsSync(annPath)) {
+  const annData = JSON.parse(await readFile(annPath, 'utf8'));
+  await processItems(annData.clips, 'audio/announcer', 'Реплики ведущего');
+  await writeFile(annPath, JSON.stringify(annData, null, 2) + '\n', 'utf8');
+} else if (r1.quotaHit) {
+  console.log('\n(Реплики ведущего пропущены — лимит исчерпан, доделаются при следующем запуске.)');
+}
+
+console.log('\n✅ Готово.');
