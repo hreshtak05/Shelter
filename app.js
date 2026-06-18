@@ -56,6 +56,16 @@
   }
   document.addEventListener('pointerdown', unlockAudio, { once: false });
 
+  // ——— Переключатель фоновой музыки ———
+  const musicBtn = $('#btn-music-toggle');
+  function refreshMusicBtn() {
+    const on = Audio.isMusicEnabled();
+    musicBtn.textContent = on ? '🔊 Музыка' : '🔇 Музыка';
+    musicBtn.classList.toggle('off', !on);
+  }
+  musicBtn.addEventListener('click', () => { unlockAudio(); Audio.toggleMusic(); refreshMusicBtn(); });
+  refreshMusicBtn();
+
   // ═══════════════ ЭКРАН НАСТРОЙКИ ═══════════════
   $$('.mode-btn').forEach(b => b.addEventListener('click', () => {
     $$('.mode-btn').forEach(x => x.classList.remove('active'));

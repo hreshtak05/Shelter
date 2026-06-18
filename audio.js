@@ -41,7 +41,10 @@ const Audio = (() => {
     }, 50);
   }
 
+  let musicEnabled = true; // переключатель «фоновая музыка вкл/выкл»
+
   function startMusic() {
+    if (!musicEnabled) return;
     if (musicEl) { musicEl.play().catch(() => {}); fadeMusicTo(musicLevel, 1500); return; }
     musicEl = new window.Audio(MUSIC_SRC);
     musicEl.loop = true;
@@ -157,6 +160,12 @@ const Audio = (() => {
     startMusic, stopMusic, duck,
     startTick, stopTick, stinger,
     speak, speakCatastrophe, stopSpeaking,
-    setMusicLevel: v => { musicLevel = v; if (musicEl && !musicFade) musicEl.volume = v; }
+    setMusicLevel: v => { musicLevel = v; if (musicEl && !musicFade) musicEl.volume = v; },
+    isMusicEnabled: () => musicEnabled,
+    toggleMusic() {
+      musicEnabled = !musicEnabled;
+      if (musicEnabled) startMusic(); else stopMusic();
+      return musicEnabled;
+    }
   };
 })();

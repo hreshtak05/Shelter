@@ -178,6 +178,11 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 /* Подсказка про звук */
 .audio-note { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--amber); color: #1a1208; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 20; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
 
+/* Переключатель фоновой музыки */
+.music-toggle { position: fixed; bottom: 20px; right: 20px; z-index: 21; background: var(--panel); border: 1px solid var(--line); color: var(--text); padding: 10px 16px; border-radius: 24px; font-size: 13px; letter-spacing: .5px; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+.music-toggle:hover { border-color: var(--amber-dim); color: var(--amber); }
+.music-toggle.off { color: var(--text-dim); }
+
 @media (max-width: 860px) {
   .game-body { grid-template-columns: 1fr; }
   .players-col, .control-col { border: none; border-top: 1px solid var(--line); }
