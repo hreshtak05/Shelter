@@ -31,7 +31,8 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const VOICE_NAME = process.env.VOICE_NAME || 'Charon';
 const MODEL = process.env.MODEL || 'gemini-2.5-flash-preview-tts';
 const STYLE = process.env.STYLE ||
-  'Прочитай очень драматично, зловещим и глубоким мужским голосом, медленно, с напряжением:';
+  'Прочитай драматично и выразительно, глубоким мужским голосом, в бодром, уверенном темпе, энергично и без лишних пауз:';
+const FORCE = /^(1|true|yes)$/i.test(process.env.FORCE || ''); // перегенерировать даже готовые
 
 if (!API_KEY) {
   console.error('Нужна переменная окружения GEMINI_API_KEY (ключ: https://aistudio.google.com/apikey).');
@@ -108,7 +109,8 @@ for (const cat of data.catastrophes) {
   if (cat.placeholder) { console.log(`⏭  Пропуск (заглушка): ${cat.name}`); continue; }
   const rel = `audio/voice/${cat.id}.wav`;
   // Уже озвучено? Пропускаем — повторный запуск доделывает только недостающее.
-  if (cat.audio && existsSync(join(ROOT, rel))) { skipped++; continue; }
+  // (FORCE=1 — перегенерировать всё, например при смене голоса или темпа.)
+  if (!FORCE && cat.audio && existsSync(join(ROOT, rel))) { skipped++; continue; }
   process.stdout.write(`🎙  ${cat.name} … `);
   try {
     const wav = await synth(cat.text);

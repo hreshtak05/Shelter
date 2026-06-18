@@ -145,7 +145,7 @@ const Audio = (() => {
         a.play().catch(() => { duck(false); resolve(); });
       });
     }
-    return speak(cat.text, { rate: 0.86, pitch: 0.65 });
+    return speak(cat.text, { rate: 1.05, pitch: 0.7 });
   }
 
   function stopSpeaking() {

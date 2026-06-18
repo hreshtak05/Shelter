@@ -6,9 +6,18 @@ on:
   workflow_dispatch:
     inputs:
       voice:
-        description: "Голос Gemini (Charon, Fenrir, Orus, Algenib, Iapetus …)"
+        description: "Голос (Charon, Algenib, Fenrir, Orus, Alnilam, Gacrux, Enceladus, Rasalgethi …)"
         required: false
         default: "Charon"
+      style:
+        description: "Стиль/темп чтения (оставьте пустым для значения по умолчанию)"
+        required: false
+        default: ""
+      force:
+        description: "Перегенерировать ВСЕ катастрофы (нужно при смене голоса/темпа)"
+        type: boolean
+        required: false
+        default: false
   push:
     paths:
       - "data/catastrophes.json"
@@ -30,6 +39,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VOICE_NAME: ${{ github.event.inputs.voice || 'Charon' }}
+          STYLE: ${{ github.event.inputs.style }}
+          FORCE: ${{ github.event.inputs.force }}
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "::error::Не задан секрет GEMINI_API_KEY (Settings → Secrets and variables → Actions)."
