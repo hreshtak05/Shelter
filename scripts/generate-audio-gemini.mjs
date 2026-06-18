@@ -31,7 +31,7 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const VOICE_NAME = process.env.VOICE_NAME || 'Fenrir';
 const MODEL = process.env.MODEL || 'gemini-2.5-flash-preview-tts';
 const STYLE = process.env.STYLE ||
-  'Прочитай драматично и выразительно, глубоким мужским голосом, в бодром, уверенном темпе, энергично и без лишних пауз:';
+  'Прочитай драматично и выразительно, глубоким мужским голосом, в быстром, энергичном темпе, бодро, динамично и без пауз:';
 const FORCE = /^(1|true|yes)$/i.test(process.env.FORCE || ''); // перегенерировать даже готовые
 
 if (!API_KEY) {
