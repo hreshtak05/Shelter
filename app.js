@@ -26,10 +26,10 @@
   // ——— Загрузка данных ———
   async function loadData() {
     const [rt, cat, ph, ann] = await Promise.all([
-      fetch('data/round-table.json').then(r => r.json()),
-      fetch('data/catastrophes.json').then(r => r.json()),
-      fetch('data/phrases.json').then(r => r.json()),
-      fetch('data/announcer.json').then(r => r.json()).catch(() => ({ clips: [] })),
+      fetch('data/round-table.json?v=2').then(r => r.json()),
+      fetch('data/catastrophes.json?v=2').then(r => r.json()),
+      fetch('data/phrases.json?v=2').then(r => r.json()),
+      fetch('data/announcer.json?v=2').then(r => r.json()).catch(() => ({ clips: [] })),
     ]);
     state.roundTable = rt;
     state.catastrophes = cat.catastrophes;
