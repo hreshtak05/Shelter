@@ -80,6 +80,10 @@ button { cursor: pointer; font-family: inherit; border-radius: 6px; transition: 
 .primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
 .primary:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #5c2a13; }
 .primary.big { width: 100%; padding: 16px; font-size: 16px; margin-top: 24px; }
+.big-ghost { width: 100%; padding: 14px; font-size: 15px; margin-top: 12px; }
+
+/* Правила */
+.rules-text { font-size: 19px; line-height: 1.75; color: var(--text); margin: 18px 0 26px; }
 .ghost {
   background: transparent; border: 1px solid var(--line); color: var(--text);
   padding: 10px 14px; letter-spacing: .5px; font-size: 13px;

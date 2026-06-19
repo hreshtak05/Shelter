@@ -76,6 +76,18 @@
   musicBtn.addEventListener('click', () => { unlockAudio(); Audio.toggleMusic(); refreshMusicBtn(); });
   refreshMusicBtn();
 
+  // ——— Правила игры (короткое объяснение + озвучка тем же голосом) ———
+  $('#btn-rules').addEventListener('click', () => {
+    unlockAudio();
+    const clip = state.announcer && state.announcer['rules'];
+    $('#rules-text').textContent = clip ? clip.text : '';
+    show('screen-rules');
+    announce('rules');
+  });
+  $('#btn-rules-replay').addEventListener('click', () => { unlockAudio(); announce('rules'); });
+  $('#btn-rules-stop').addEventListener('click', () => Audio.stopVoice());
+  $('#btn-rules-back').addEventListener('click', () => { Audio.stopVoice(); show('screen-setup'); });
+
   // ═══════════════ ЭКРАН НАСТРОЙКИ ═══════════════
   $$('.mode-btn').forEach(b => b.addEventListener('click', () => {
     $$('.mode-btn').forEach(x => x.classList.remove('active'));
